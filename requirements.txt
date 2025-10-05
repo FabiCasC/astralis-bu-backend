@@ -1,7 +1,7 @@
 flask
 requests
 python-dotenv
-numpy   # solo si quieres el mock de trayectorias
+numpy  
 flask_migrate
 flask_sqlalchemy
 astropy

@@ -43,11 +43,8 @@ def simulate_impact_trajectory(
     Retorna
     -------
     dict con:
-        - trajectory: lista de {t, x, y, z, r, v}
-        - impact: bool
-        - impact_time_s
-        - impact_speed_km_s
-        - impact_energy_megatons (si masa definida)
+        - trajectory: lista de {t, x, y, z, r, v, velocity_km_s: [vx, vy, vz]}
+        - impact: dict con información de impacto o False si no hay impacto
     """
     logging.info(f"Simulating impact trajectory for NEO {neo_id} with position {position_km} and velocity {velocity_kms}")
     # Convertir unidades iniciales
@@ -56,7 +53,7 @@ def simulate_impact_trajectory(
 
     t = 0.0
     trajectory = []
-    impact = False
+    impact_detected = False
 
     # Calcular masa si hay densidad y diámetro
     mass_kg = None
@@ -71,7 +68,7 @@ def simulate_impact_trajectory(
     while t < max_time:
         r_norm = np.linalg.norm(r)
         if r_norm <= EARTH_RADIUS_KM * KM_TO_M:
-            impact = True
+            impact_detected = True
             break
 
         # Fuerza gravitacional: F = -G * M_e * m / r^2 * (r̂)
@@ -92,17 +89,21 @@ def simulate_impact_trajectory(
 
         t += dt
 
+        # Guardar también el vector de velocidad en km/s
+        velocity_km_s = (v / KM_TO_M).tolist()
+
         trajectory.append({
             "t_s": t,
             "x_km": r[0] / KM_TO_M,
             "y_km": r[1] / KM_TO_M,
             "z_km": r[2] / KM_TO_M,
             "r_km": r_norm_new / KM_TO_M,
-            "v_km_s": float(np.linalg.norm(v) / KM_TO_M)
+            "v_km_s": float(np.linalg.norm(v) / KM_TO_M),
+            "velocity_km_s": velocity_km_s  # Vector de velocidad en km/s
         })
 
+    # Preparamos el resultado base
     result = {
-        "impact": impact,
         "trajectory": trajectory,
         "mass_kg": mass_kg,
         "diameter_m": diameter_m,
@@ -110,16 +111,62 @@ def simulate_impact_trajectory(
         "dt": dt,
         "max_time": max_time,
     }
+    result["impact"] = impact_detected
 
-    if impact:
-        impact_speed = np.linalg.norm(v) / KM_TO_M
-        result["impact_time_s"] = t
-        result["impact_speed_km_s"] = impact_speed
+    # Si hay impacto, todo lo relacionado a impacto va en el key "impact"
+    if impact_detected:
+        # Calcular la velocidad de impacto y el ángulo respecto a la superficie
+        impact_speed = np.linalg.norm(v) / KM_TO_M  # km/s
+        impact_velocity_vec = v / KM_TO_M  # km/s
+        impact_position_vec = r / KM_TO_M  # km
+
+        # El vector normal a la superficie es el radial (r), así que el ángulo es entre v y r
+        v_dot_r = np.dot(impact_velocity_vec, impact_position_vec)
+        v_norm = np.linalg.norm(impact_velocity_vec)
+        r_norm = np.linalg.norm(impact_position_vec)
+        if v_norm > 0 and r_norm > 0:
+            cos_theta = v_dot_r / (v_norm * r_norm)
+            # Limitar cos_theta a [-1, 1] para evitar errores numéricos
+            cos_theta = max(min(cos_theta, 1.0), -1.0)
+            sin_theta = np.sqrt(1 - cos_theta**2)
+        else:
+            sin_theta = 0.0
+
+        impact_info = {
+            "impact_time_s": t,
+            "impact_speed_km_s": impact_speed
+        }
+
         if mass_kg is not None and diameter_m is not None:
+            # Energía total de impacto (Joules)
             energy_joules = 0.5 * mass_kg * (impact_speed * 1000)**2
             energy_megatons = energy_joules / 4.184e15
-            result["impact_energy_megatons"] = energy_megatons
+            impact_info["impact_energy_megatons"] = energy_megatons
+            impact_info["impact_energy_joules"] = energy_joules
+
+            # Energía transferida a la Tierra (proyectada por el ángulo de impacto)
+            energy_transferred = energy_joules * sin_theta
+            impact_info["impact_energy_transferred_joules"] = energy_transferred
+
+            # Energía transferida efectiva con mu=1e-3
+            mu = 1e-3
+            energy_transferred_mu = energy_transferred * mu
+            impact_info["impact_energy_transferred_mu_joules"] = energy_transferred_mu
+
+            # Escala de Richter: 2/3 * (log10(E_transferida_mu)) - 3.2
+            if energy_transferred_mu > 0:
+                richter = (2/3) * (np.log10(energy_transferred_mu)) - 3.2
+            else:
+                richter = None
+            impact_info["richter_magnitude"] = richter
+
+            # Guardar también el ángulo de impacto (en grados)
+            impact_info["impact_angle_deg"] = np.degrees(np.arcsin(sin_theta))
+
         logging.info(f"Impact detected for NEO {neo_id}")
+        result["impact_details"] = impact_info
+    else:
+        result["impact_details"] = {}
 
     return result
 

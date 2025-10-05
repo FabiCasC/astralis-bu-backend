@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from app.services.trajectory import get_trajectory_by_neoid
-from app.services.nasa import query_neo_by_id
+from app.services.nasa import query_neo_by_id, get_browse_ids
 import logging
 
 logging.basicConfig(level=logging.INFO, )
@@ -45,28 +45,6 @@ def get_neo_data_by_id():
         return jsonify({"error": "Asteroid ID is required"}), 400
     return jsonify(query_neo_by_id(asteroid_id))
 
-
-@app.route("/nasa/mock_trajectory/<neo_id>", methods=["GET"])
-def get_mock_trajectory(neo_id):
-    """Returns mock trajectory data for a given NEO ID."""
-    np.random.seed(int(neo_id) % 1000)  # deterministic mock
-    timestamps = [datetime.utcnow() + timedelta(minutes=i * 10) for i in range(5)]
-    trajectory = [
-        {
-            "timestamp": t.isoformat() + "Z",
-            "x": float(np.sin(i / 3) * 0.1),
-            "y": float(np.cos(i / 3) * 0.1),
-            "z": float(np.sin(i / 5) * 0.05)
-        }
-        for i, t in enumerate(timestamps)
-    ]
-
-    return jsonify({
-        "neo_id": neo_id,
-        "trajectory": trajectory
-    })
-
-
 import ast
 from flask import request, jsonify
 
@@ -95,6 +73,10 @@ def get_trajectory(neo_id):
             dt
         )
     )
+
+@app.route("/nasa/get_browse_ids", methods=["GET"])
+def get_browse_ids_route():
+    return jsonify(get_browse_ids())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

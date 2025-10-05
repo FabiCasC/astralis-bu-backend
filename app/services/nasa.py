@@ -20,3 +20,21 @@ def query_neo_by_id(neo_id):
         return response.json()
     except requests.RequestException as e:
         return jsonify({"error": str(e)}), 500
+
+def get_browse_ids():
+    params = {
+        "api_key": NASA_API_KEY
+    }
+    url = f"{NASA_API_URL}/neo/browse"
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        objects = []
+        for obj in response.json()["near_earth_objects"]:
+            objects.append({
+                "id": obj["id"],
+                "name": obj["name"]
+            })
+        return objects
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500

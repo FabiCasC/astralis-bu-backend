@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from app.services.trajectory import get_trajectory_by_neoid
 from app.services.nasa import query_neo_by_id, get_browse_ids
+from app.services.earthquake import query_get_earthquake_data
 import logging
 
 logging.basicConfig(level=logging.INFO, )
@@ -77,6 +78,14 @@ def get_trajectory(neo_id):
 @app.route("/nasa/get_browse_ids", methods=["GET"])
 def get_browse_ids_route():
     return jsonify(get_browse_ids())
+
+@app.route("/earthquake/data", methods=["GET"])
+def get_earthquake_data():
+    min_magnitude = request.args.get("min_magnitude", default=2.5, type=float)
+    max_magnitude = request.args.get("max_magnitude", default=10.0, type=float)
+    return query_get_earthquake_data(min_magnitude, max_magnitude)
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

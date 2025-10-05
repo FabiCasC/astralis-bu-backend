@@ -21,3 +21,6 @@ def create_app():
         return {'message': 'Backend Astralis listo 🚀'}
 
     return app
+
+# Create a global application instance for WSGI servers
+app = create_app()

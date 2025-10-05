@@ -87,3 +87,24 @@ A continuación se detallan los endpoints disponibles:
         }
     }
     ```
+
+### 5. Obtener IDs de NEOs para Explorar
+
+-   **Descripción:** Devuelve una lista de todos los Objetos Cercanos a la Tierra (NEOs) disponibles a través del endpoint de exploración (`/browse`) de la API de la NASA. Proporciona el ID y el nombre de cada NEO.
+-   **Método:** `GET`
+-   **URL:** `/nasa/get_browse_ids`
+-   **Argumentos:** Ninguno.
+-   **Estructura de Salida Esperada (JSON):**
+
+    ```json
+    [
+        {
+            "id": "string",
+            "name": "string"
+        },
+        {
+            "id": "string",
+            "name": "string"
+        }
+    ]
+    ```
